@@ -1,7 +1,6 @@
 \# GymFit
 
 
-
 A full-stack web application built to manage gym workouts and classes. Regular users can browse and filter available sessions, while administrators can add or delete workouts directly from the interface.
 
 
