@@ -38,11 +38,3 @@ A full-stack web application built to manage gym memberships, workouts, and clas
 * **Live Filtering:** A search bar and category buttons (Strength, Endurance, Flexibility) to filter gym classes in real-time without reloading the page.
 
 ---
-
-## Roadmap / Future Improvements
-
-* [ ] **Stripe Integration:** Replace the current mock tier upgrade with a real payment gateway using Stripe.
-* [ ] **Real-Time Updates (SignalR):** Implement WebSockets so that when a user books a slot, the remaining capacity updates instantly on everyone else's screen.
-* [ ] **Calendar Export:** Add an option to generate `.ics` files so users can add their booked workouts to Google or Apple Calendar.
-
----
