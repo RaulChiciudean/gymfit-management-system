@@ -1,26 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import { toast } from "react-hot-toast";
 
 const Profile = () => {
     const [user, setUser] = useState(null);
     const [bookedClasses, setBookedClasses] = useState([]);
+    const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [profileRes, bookingsRes] = await Promise.all([
+                const [profileRes, bookingsRes, historyRes] = await Promise.all([
                     api.get('/api/Auth/profile'),
-                    api.get('/api/bookings')
+                    api.get('/api/bookings'),
+                    api.get('/api/Account/subscription-history')
                 ]);
 
                 setUser(profileRes.data);
                 setBookedClasses(bookingsRes.data);
+                setHistory(historyRes.data);
             } catch (err) {
                 console.error(err);
-                setError('Failed to load profile or booking data.');
+                setError('Failed to load profile or subscription data.');
             } finally {
                 setLoading(false);
             }
@@ -29,14 +33,29 @@ const Profile = () => {
         fetchData();
     }, []);
 
+    const handleUpgrade = async () => {
+        try {
+            await api.post('/api/Account/upgrade');
+            // Setăm tier pe 1 (valoarea din backend pentru Elite) ca să se actualizeze instant interfața
+            setUser(prev => ({ ...prev, tier: 1 }));
+
+            const historyRes = await api.get('/api/Account/subscription-history');
+            setHistory(historyRes.data);
+
+            toast.success("Welcome to Elite status!");
+        } catch (err) {
+            toast.error("Upgrade failed. Please try again.");
+        }
+    };
+
     const handleCancelBooking = async (id) => {
         if (window.confirm("Are you sure you want to cancel this booking?")) {
             try {
                 await api.delete(`/api/bookings/${id}`);
+                toast.success("Booking deleted successfully!");
                 setBookedClasses(prevBookings => prevBookings.filter(b => b.id !== id));
             } catch (err) {
-                console.error(err);
-                alert("Failed to cancel booking. Please try again.");
+                toast.error("The cancelling has failed.");
             }
         }
     };
@@ -57,6 +76,10 @@ const Profile = () => {
         );
     }
 
+    // Verificăm dacă userul este Elite (1) sau Pro (0 sau nedefinit)
+    const isElite = user?.tier === 1 || user?.tier === 'Elite';
+    const isPro = user?.tier === 0 || user?.tier === 'Pro' || user?.tier == null;
+
     return (
         <div className="min-h-screen bg-[#0A0E17] text-white font-sans p-6 pb-24">
             <div className="max-w-5xl mx-auto">
@@ -69,8 +92,8 @@ const Profile = () => {
                     </div>
 
                     <div className="mb-3">
-                        <span className="bg-[#2DE8DA] text-[#0A0E17] font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider shadow-md shadow-[#2DE8DA]/20">
-                            PRO USER
+                        <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider shadow-md ${isElite ? 'bg-purple-500 text-white shadow-purple-500/20' : 'bg-[#2DE8DA] text-[#0A0E17] shadow-[#2DE8DA]/20'}`}>
+                            {isElite ? 'Elite' : 'Pro'} USER
                         </span>
                     </div>
 
@@ -81,6 +104,16 @@ const Profile = () => {
                         {user?.email}
                     </p>
 
+                    {/* Buton Upgrade - Apare doar dacă userul este PRO */}
+                    {isPro && (
+                        <button
+                            onClick={handleUpgrade}
+                            className="bg-transparent border border-[#2DE8DA] text-[#2DE8DA] hover:bg-[#2DE8DA] hover:text-[#0A0E17] transition-all text-xs font-black px-6 py-2 rounded-full uppercase tracking-wider mb-6 cursor-pointer z-10 relative"
+                        >
+                            Upgrade to ELITE
+                        </button>
+                    )}
+
                     <div className="flex gap-3">
                         <span className="px-4 py-1.5 bg-[#161B28] text-[#2DE8DA] rounded-full text-xs font-bold border border-[#2DE8DA]/20">⚡ 24 Days Streak</span>
                         <span className="px-4 py-1.5 bg-[#161B28] text-white rounded-full text-xs font-bold">🏆 Level Elite 4</span>
@@ -88,14 +121,31 @@ const Profile = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-
                     <div className="flex flex-col gap-4">
-                        <div className="bg-[#161B28] rounded-[2rem] p-6 border border-[#161B28]/50 flex items-center justify-between">
-                            <div>
-                                <p className="text-[#818FA2] text-xs font-bold uppercase mb-1">Total Bookings</p>
-                                <p className="text-3xl font-black text-[#2DE8DA]">{bookedClasses.length}</p>
+                        <div className="bg-[#161B28] rounded-[2rem] p-6 border border-[#161B28]/50">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <p className="text-[#818FA2] text-xs font-bold uppercase mb-1">Total Bookings</p>
+                                    <p className="text-3xl font-black text-[#2DE8DA]">{bookedClasses.length}</p>
+                                </div>
+                                <div className="text-xl">📅</div>
                             </div>
-                            <div className="text-xl">📅</div>
+
+                            {/* Progresie vizibilă doar pentru utilizatorii Pro */}
+                            {isPro && (
+                                <div className="mt-2">
+                                    <div className="flex justify-between text-[10px] text-[#818FA2] mb-1">
+                                        <span>Capacity</span>
+                                        <span>{bookedClasses.length} / 10</span>
+                                    </div>
+                                    <div className="w-full bg-[#0A0E17] h-1.5 rounded-full overflow-hidden">
+                                        <div
+                                            className="bg-[#2DE8DA] h-full transition-all duration-500"
+                                            style={{ width: `${Math.min((bookedClasses.length / 10) * 100, 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-[#161B28] rounded-[2rem] p-6 border border-[#161B28]/50 flex items-center justify-between">
@@ -135,19 +185,38 @@ const Profile = () => {
                     </div>
                 </div>
 
-                <div className="bg-[#161B28] rounded-[2rem] p-6 border border-[#161B28]/50">
-                    <h3 className="text-sm font-black uppercase text-[#818FA2] mb-4">Recent Achievements</h3>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between p-3 bg-[#0A0E17] rounded-xl border border-[#161B28]/30">
-                            <div className="flex items-center gap-3"><span>🔥</span>
-                                <div>
-                                    <p className="text-sm font-bold">Iron Heart</p>
-                                    <p className="text-xs text-[#818FA2]">Committed to the grind. Sessions active.</p>
+                {/* Istoricul Abonamentelor și Plăților */}
+                <div className="bg-[#161B28] rounded-[2rem] p-8 border border-[#161B28]/50">
+                    <h3 className="text-sm font-black uppercase text-[#818FA2] mb-6 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                        Billing & Subscription History
+                    </h3>
+
+                    {history.length === 0 ? (
+                        <p className="text-[#818FA2] text-sm italic">No payment transactions found.</p>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {history.map((sub) => (
+                                <div key={sub.id} className="bg-[#0A0E17] border border-[#161B28]/60 rounded-xl p-4 flex justify-between items-center">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-xs font-black px-2 py-0.5 rounded uppercase ${sub.tier === 1 ? 'bg-purple-600 text-white' : 'bg-cyan-600 text-white'}`}>
+                                                {sub.tier === 1 ? 'ELITE' : 'PRO'}
+                                            </span>
+                                            <span className="text-xs text-green-400 font-medium">● Active</span>
+                                        </div>
+                                        <p className="text-xs text-[#818FA2]">
+                                            Purchased: {new Date(sub.startDate).toLocaleDateString()} • Expires: {new Date(sub.expiryDate).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-lg font-black text-[#2DE8DA]">${sub.amountPaid.toFixed(2)}</p>
+                                        <p className="text-[10px] text-[#818FA2] uppercase tracking-wider">Paid via PulsePay</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <span className="text-[11px] text-[#2DE8DA] font-semibold">Unlocked</span>
+                            ))}
                         </div>
-                    </div>
+                    )}
                 </div>
 
             </div>

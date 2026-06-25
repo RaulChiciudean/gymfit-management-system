@@ -48,6 +48,18 @@ namespace GymFitApi.Controllers
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Unauthorized();
 
+            // --- LOGICĂ NOUĂ: Verificarea abonamentului ---
+            int limit = user.Tier == MembershipTier.Elite ? int.MaxValue : 10;
+            var currentBookingsCount = await _context.Bookings.CountAsync(b => b.UserId == user.Id);
+
+            if (currentBookingsCount >= limit)
+            {
+                return BadRequest(new { 
+                    message = $"Ai atins limita de {limit} clase inclusă în abonamentul tău {user.Tier}. Upgrade la Elite pentru antrenamente nelimitate!" 
+                });
+            }
+            // ----------------------------------------------
+
             var exists = await _context.Bookings.AnyAsync(b => 
                 b.UserId == user.Id && b.ClassId == request.ClassId && b.Day == request.Day);
             

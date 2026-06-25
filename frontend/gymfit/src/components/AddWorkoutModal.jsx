@@ -1,113 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import api from '../api';
 
 const AddWorkoutModal = ({ isOpen, onClose, onWorkoutAdded }) => {
-    const [formData, setFormData] = useState({
-        name: '',
-        duration: '',
-        maxCapacity: ''
-    });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [name, setName] = useState('');
+    const [duration, setDuration] = useState('');
+    const [maxCapacity, setMaxCapacity] = useState('');
+    const [trainerId, setTrainerId] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
+    const [trainers, setTrainers] = useState([]);
 
-    if (!isOpen) return null;
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    useEffect(() => {
+        if (isOpen) {
+            api.get('/api/Trainers')
+                .then(res => setTrainers(res.data))
+                .catch(err => toast.error("Failed to load trainers."));
+        }
+    }, [isOpen]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
-
         try {
-            const payload = {
-                name: formData.name,
-                duration: parseInt(formData.duration),
-                maxCapacity: parseInt(formData.maxCapacity)
-            };
-
-            const response = await api.post('/api/SportClass', payload);
-            onWorkoutAdded(response.data);
-            setFormData({ name: '', duration: '', maxCapacity: '' });
+            await api.post('/api/SportClass', {
+                name,
+                duration: parseInt(duration),
+                maxCapacity: parseInt(maxCapacity),
+                trainerId: parseInt(trainerId),
+                imageUrl: imageUrl
+            });
+            toast.success("Workout added successfully!");
+            onWorkoutAdded();
             onClose();
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to add workout. Please try again.');
-        } finally {
-            setLoading(false);
+            toast.error("Failed to add workout.");
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+    if (!isOpen) return null;
 
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <form onSubmit={handleSubmit} className="bg-[#161B28] w-full max-w-sm rounded-3xl p-8 border border-[#2DE8DA]/20 relative">
                 <button
+                    type="button"
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+                    className="absolute top-4 right-4 text-[#818FA2] hover:text-white transition-colors"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
 
-                <h2 className="text-2xl font-bold text-white mb-6">Add New Workout</h2>
+                <h2 className="text-white font-black text-xl mb-6">Add New Workout</h2>
 
-                {error && <p className="text-red-400 text-sm mb-4 bg-red-400/10 p-3 rounded-lg">{error}</p>}
+                <input type="text" placeholder="Workout Name" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#0A0E17] p-3 rounded-xl text-white mb-4 border border-[#818FA2]/30" required />
+                <input type="number" placeholder="Duration (min)" value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full bg-[#0A0E17] p-3 rounded-xl text-white mb-4 border border-[#818FA2]/30" required />
+                <input type="number" placeholder="Max Capacity" value={maxCapacity} onChange={(e) => setMaxCapacity(e.target.value)} className="w-full bg-[#0A0E17] p-3 rounded-xl text-white mb-4 border border-[#818FA2]/30" required />
+                <input type="text" placeholder="Image URL" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full bg-[#0A0E17] p-3 rounded-xl text-white mb-4 border border-[#818FA2]/30" />
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-zinc-400 text-sm mb-1">Workout Name</label>
-                        <input
-                            type="text"
-                            name="name"
-                            required
-                            value={formData.name}
-                            onChange={handleChange}
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400"
-                            placeholder="e.g., HIIT Core Crusher"
-                        />
-                    </div>
+                <select value={trainerId} onChange={(e) => setTrainerId(e.target.value)} className="w-full bg-[#0A0E17] p-3 rounded-xl text-white mb-6 border border-[#818FA2]/30" required>
+                    <option value="">Select a Trainer</option>
+                    {trainers.map(t => (
+                        <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
+                    ))}
+                </select>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-zinc-400 text-sm mb-1">Duration (min)</label>
-                            <input
-                                type="number"
-                                name="duration"
-                                required
-                                min="1"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400"
-                                placeholder="e.g., 45"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-zinc-400 text-sm mb-1">Max Capacity</label>
-                            <input
-                                type="number"
-                                name="maxCapacity"
-                                required
-                                min="1"
-                                value={formData.maxCapacity}
-                                onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-cyan-400"
-                                placeholder="e.g., 20"
-                            />
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-cyan-400 text-zinc-950 font-bold py-3 rounded-xl hover:bg-cyan-300 transition-colors mt-4 disabled:opacity-50"
-                    >
-                        {loading ? 'Adding...' : 'Create Workout'}
-                    </button>
-                </form>
-            </div>
+                <button type="submit" className="w-full bg-[#2DE8DA] text-[#0A0E17] font-black py-3 rounded-xl">Create Workout</button>
+            </form>
         </div>
     );
 };

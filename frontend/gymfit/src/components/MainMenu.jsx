@@ -1,13 +1,26 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import AuthModal from './AuthModal';
 
 const MainMenu = () => {
+    const context = useContext(AuthContext);
     const location = useLocation();
     const navigate = useNavigate();
-    const { isLoggedIn, logout, user } = useContext(AuthContext);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (context && !context.token) {
+            setIsModalOpen(true);
+        }
+    }, [context]);
+
+    if (!context) {
+        return null;
+    }
+
+    const { token, logout, user } = context;
+    const isLoggedIn = !!token;
 
     const isActive = (path) => location.pathname === path;
 
@@ -24,7 +37,8 @@ const MainMenu = () => {
         <nav className="bg-[#0A0E17] border-b border-[#161B28]/60 sticky top-0 z-50 px-6 py-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
 
-                <Link to="/library" className="flex items-center gap-3 group">
+                {/* LOGO */}
+                <Link to="/" className="flex items-center gap-3 group">
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="transition-transform group-hover:rotate-12">
                         <path d="M12 2L2 12L12 22L22 12L12 2Z" stroke="#2DE8DA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
@@ -35,7 +49,7 @@ const MainMenu = () => {
                     <Link
                         to="/library"
                         className={`px-6 py-2 rounded-full text-xs font-bold tracking-wide transition-all ${
-                            isActive('/library') || location.pathname.includes('/workout')
+                            isActive('/library')
                                 ? 'bg-[#2DE8DA] text-[#0A0E17] font-black shadow-lg shadow-[#2DE8DA]/20'
                                 : 'text-[#818FA2] hover:text-white'
                         }`}
@@ -74,7 +88,6 @@ const MainMenu = () => {
                         </span>
                     </button>
                 </div>
-
             </div>
 
             <AuthModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

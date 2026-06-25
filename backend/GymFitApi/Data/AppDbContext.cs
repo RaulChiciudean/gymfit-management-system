@@ -12,6 +12,7 @@ namespace GymFitApi.Data
         public DbSet<SportClass> SportClasses {get; set;}
 
         public DbSet<Booking> Bookings { get; set; }
+        public DbSet<Subscription> Subscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

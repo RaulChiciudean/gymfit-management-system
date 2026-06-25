@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using GymFitApi.Middlware;
 using Microsoft.AspNetCore.Identity;
 using GymFitApi.Models;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,11 +17,33 @@ builder.Services.AddCors(options => {
     });
 });
 
-builder.Services.AddAuthorization();
-builder.Services.AddIdentityApiEndpoints<AppUser>()
-    .AddRoles<IdentityRole>()
+builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "CheiaMeaSecretaSiFoarteLungaDePeste32DeCaracterePentruGymFit2026!";
+var key = Encoding.UTF8.GetBytes(jwtSecret);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:ValidIssuer"],
+        ValidAudience = builder.Configuration["Jwt:ValidAudience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -57,7 +82,6 @@ app.UseCors("AllowReact");
 app.UseAuthentication(); 
 app.UseAuthorization();
 
-app.MapIdentityApi<AppUser>(); 
 app.MapControllers();
 
 app.Run();

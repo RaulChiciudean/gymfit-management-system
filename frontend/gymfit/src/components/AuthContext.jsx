@@ -1,51 +1,51 @@
 import React, { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext();
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(() => localStorage.getItem('token'));
-    const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('token'));
-    const [user, setUser] = useState(null);
+    // Safely initialize token
+    const [token, setToken] = useState(() => {
+        const savedToken = localStorage.getItem('token');
+        return (savedToken && savedToken !== 'undefined' && savedToken !== 'null') ? savedToken : null;
+    });
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            if (token) {
-                try {
-                    const res = await axios.get('http://localhost:5000/api/Auth/profile', {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setUser(res.data);
-                } catch (err) {
-                    console.error(err);
-                    if (err.response?.status === 401) {
-                        logout();
-                    }
-                }
-            } else {
-                setUser(null);
-            }
-        };
+    // Safely initialize user and prevent JSON.parse crashes
+    const [user, setUser] = useState(() => {
+        const savedUser = localStorage.getItem('user');
+        if (!savedUser || savedUser === 'undefined' || savedUser === 'null') {
+            return null;
+        }
+        try {
+            return JSON.parse(savedUser);
+        } catch (error) {
+            console.error("Failed to parse user data from localStorage:", error);
+            return null;
+        }
+    });
 
-        fetchUser();
-    }, [token]);
+    const [loading, setLoading] = useState(false);
 
-    const login = (jwt) => {
-        localStorage.setItem('token', jwt);
-        setToken(jwt);
-        setIsLoggedIn(true);
+    const login = (newToken, userData = null) => {
+        localStorage.setItem('token', newToken);
+        if (userData) {
+            localStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+        } else {
+            localStorage.removeItem('user');
+            setUser(null);
+        }
+        setToken(newToken);
     };
 
     const logout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         setToken(null);
-        setIsLoggedIn(false);
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ isLoggedIn, token, user, setUser, login, logout }}>
+        <AuthContext.Provider value={{ token, user, loading, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

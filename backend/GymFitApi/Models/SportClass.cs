@@ -14,6 +14,8 @@ public class SportClass
 
 
     public int TrainerId { get; set; }
+
+    public string? ImageUrl { get; set; }
     
     public Trainer? Trainer { get; set; }
 

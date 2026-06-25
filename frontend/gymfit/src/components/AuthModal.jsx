@@ -1,9 +1,12 @@
 import React, { useState, useContext } from 'react';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import api from "../api.js";
 import { AuthContext } from './AuthContext';
 
 const AuthModal = ({ isOpen, onClose }) => {
     const { login } = useContext(AuthContext);
+    const navigate = useNavigate();
+
     const [isLoginMode, setIsLoginMode] = useState(true);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -21,25 +24,33 @@ const AuthModal = ({ isOpen, onClose }) => {
 
         try {
             if (isLoginMode) {
-                const res = await axios.post('http://localhost:5000/login', {
+                // 1. Facem logarea standard
+                const res = await api.post('/api/Auth/login', {
                     email,
                     password
                 });
 
-                const token = res.data.accessToken;
+                const token = res.data.token;
 
-                // 1. Salvăm token-ul în localStorage pentru a persista sesiunea
+                // 2. Setăm token-ul în localStorage imediat pentru ca
+                // interceptorul API să îl poată folosi la următoarea cerere
                 localStorage.setItem('token', token);
-
-                // 2. Setăm header-ul default pentru toate apelurile axios viitoare din această sesiune
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-                // 3. Actualizăm starea globală a aplicației
                 login(token);
 
-                onClose();
+                // 3. Verificăm istoricul abonamentelor
+                const historyRes = await api.get('/api/Account/subscription-history');
+
+                onClose(); // Închidem modalul
+
+                // 4. Redirecționăm în funcție de istoric
+                if (historyRes.data.length === 0) {
+                    navigate('/choose-plan'); // Cont nou fără istoric
+                } else {
+                    navigate('/library'); // Cont vechi cu istoric
+                }
+
             } else {
-                await axios.post('http://localhost:5000/api/Auth/register-full', {
+                await api.post('/api/Auth/register-full', {
                     firstName,
                     lastName,
                     email,

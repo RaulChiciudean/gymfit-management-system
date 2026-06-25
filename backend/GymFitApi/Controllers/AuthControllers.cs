@@ -2,6 +2,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using GymFitApi.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace GymFitApi.Controllers;
 
@@ -11,11 +15,13 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<AppUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager)
+    public AuthController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
     {
         _userManager = userManager;
         _roleManager = roleManager;
+        _configuration = configuration;
     }
 
     [HttpPost("register-full")]
@@ -37,6 +43,46 @@ public class AuthController : ControllerBase
         }
 
         return BadRequest(result.Errors);
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    {
+        var user = await _userManager.FindByEmailAsync(dto.Email);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
+        {
+            return Unauthorized(new { message = "Invalid email or password" });
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var authClaims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
+
+        foreach (var role in roles)
+        {
+            authClaims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var jwtSecret = _configuration["Jwt:Secret"] ?? "SuperSecretKeyThatIsLongEnoughToSatisfySecurityRequirements123!";
+        var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:ValidIssuer"],
+            audience: _configuration["Jwt:ValidAudience"],
+            expires: DateTime.Now.AddDays(3),
+            claims: authClaims,
+            signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+        );
+
+        return Ok(new
+        {
+            token = new JwtSecurityTokenHandler().WriteToken(token),
+            expiration = token.ValidTo
+        });
     }
 
     [Authorize]
@@ -92,4 +138,10 @@ public class RegisterDto
     public string Password { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+}
+
+public class LoginDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
 }

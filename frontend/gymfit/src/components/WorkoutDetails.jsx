@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 import { AuthContext } from './AuthContext';
+import { toast } from 'react-hot-toast';
 
 const WorkoutDetails = () => {
     const { id } = useParams();
@@ -10,7 +11,7 @@ const WorkoutDetails = () => {
 
     const [workout, setWorkout] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({ name: '', duration: 0, trainerId: 1, maxCapacity: 20 });
+    const [editData, setEditData] = useState({ name: '', duration: 0, trainerId: 1, maxCapacity: 20, imageUrl: '' });
     const [selectedDay, setSelectedDay] = useState('Monday');
 
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -25,6 +26,8 @@ const WorkoutDetails = () => {
     }, [id]);
 
     const handleJoinClass = async () => {
+        const loadingToast = toast.loading("The booking is processing");
+
         try {
             await api.post('/api/bookings', {
                 classId: id.toString(),
@@ -33,13 +36,32 @@ const WorkoutDetails = () => {
                 duration: workout.duration
             });
 
-            alert(`Booking successful for ${selectedDay}!`);
+            toast.dismiss(loadingToast);
+            toast.success(`Booked for ${selectedDay}!`, {
+                style: { background: '#161B28', color: '#2DE8DA', border: '1px solid #2DE8DA' },
+            });
 
             const res = await api.get(`/api/SportClass/${id}`);
             setWorkout(res.data);
         } catch (err) {
+            toast.dismiss(loadingToast);
             console.error(err);
-            alert(err.response?.data?.message || "Failed to book the class.");
+
+            // Extragem mesajul exact trimis de C#
+            const errorMessage = err.response?.data?.message || "The booking has failed. Try again.";
+
+            // Verificăm dacă este o eroare de limită de abonament
+            const isLimitWarning = errorMessage.includes("Upgrade");
+
+            toast.error(errorMessage, {
+                duration: isLimitWarning ? 5000 : 3000, // Îl lăsăm mai mult pe ecran dacă e mesaj lung
+                style: {
+                    background: '#161B28',
+                    // Folosim un portocaliu/auriu pentru "Upgrade" și roșu pentru erori normale
+                    color: isLimitWarning ? '#ffb86c' : '#ff4d4d',
+                    border: `1px solid ${isLimitWarning ? '#ffb86c' : '#ff4d4d'}`
+                },
+            });
         }
     };
 
@@ -83,7 +105,11 @@ const WorkoutDetails = () => {
                 <Link to="/library" className="text-[#818FA2] hover:text-white mb-6 inline-block text-sm">← Back to Library</Link>
 
                 <div className="relative h-[280px] rounded-[2rem] overflow-hidden mb-8 border border-[#161B28]">
-                    <img src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000" className="w-full h-full object-cover" alt="" />
+                    <img
+                        src={workout.imageUrl || "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1000"}
+                        className="w-full h-full object-cover"
+                        alt={workout.name}
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-[#0A0E17]/40 to-transparent flex items-end p-8">
                         {isEditing ? (
                             <div className="w-full">
@@ -123,6 +149,18 @@ const WorkoutDetails = () => {
 
                 <form onSubmit={handleSaveUpdate}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end mb-8">
+                        {isEditing && (
+                            <div className="col-span-full bg-[#161B28] p-6 rounded-[2rem] border border-[#161B28]/60">
+                                <p className="text-[#818FA2] text-[10px] font-black uppercase tracking-wider mb-2">Image URL</p>
+                                <input
+                                    type="text"
+                                    className="w-full bg-[#0A0E17] border border-zinc-700 rounded-lg p-3 text-white font-bold"
+                                    value={editData.imageUrl || ''}
+                                    onChange={(e) => setEditData({...editData, imageUrl: e.target.value})}
+                                />
+                            </div>
+                        )}
+
                         <div className="bg-[#161B28] p-6 rounded-[2rem] border border-[#161B28]/60">
                             <p className="text-[#818FA2] text-[10px] font-black uppercase tracking-wider mb-1">Expert Coach</p>
                             {isEditing ? (
@@ -193,14 +231,10 @@ const WorkoutDetails = () => {
                     </div>
                 </form>
 
-                {user?.role === 'Admin' && (
+                {user?.role === 'Admin' && !isEditing && (
                     <div className="flex gap-4 border-t border-[#161B28] pt-6">
-                        {!isEditing && (
-                            <>
-                                <button onClick={() => setIsEditing(true)} className="text-xs text-[#818FA2] hover:text-white transition-colors">🔧 Edit Class Settings</button>
-                                <button onClick={handleDelete} className="text-xs text-red-500/60 hover:text-red-400 transition-colors">🗑️ Delete Class</button>
-                            </>
-                        )}
+                        <button onClick={() => setIsEditing(true)} className="text-xs text-[#818FA2] hover:text-white transition-colors">🔧 Edit Class Settings</button>
+                        <button onClick={handleDelete} className="text-xs text-red-500/60 hover:text-red-400 transition-colors">🗑️ Delete Class</button>
                     </div>
                 )}
             </div>
