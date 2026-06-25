@@ -16,13 +16,13 @@ A full-stack web application built to manage gym memberships, workouts, and clas
 ## Application Preview
 
 ### User Dashboard & Stats
-!(./screenshots/user_dashboard.png)
+![User Dashboard](./screenshots/user_dashboard.png)
 
 ### Live Workout Library
-!(./screenshots/library.png)
+![Workout Library](./screenshots/library.png)
 
 ### Admin HQ Control Panel
-!(./screenshots/admin_dashboard.png)
+![Admin Dashboard](./screenshots/admin_dashboard.png)
 
 ---
 
