@@ -13,6 +13,19 @@ A full-stack web application built to manage gym memberships, workouts, and clas
 
 ---
 
+## Application Preview
+
+### 📱 User Dashboard & Stats
+![User Dashboard](./screenshots/user_dashboard.png)
+
+### 🏋️ Live Workout Library
+![Workout Library](./screenshots/library.png)
+
+### 💼 Admin HQ Control Panel
+![Admin Dashboard](./screenshots/admin_dashboard.png)
+
+---
+
 ## Features
 
 * **Authentication & Role-Based UI:** Secure registration and login handling with hashed passwords via Identity. The frontend reads the roles from the decoded JWT token to dynamically display components and protect routes (`PrivateRoute` and `AdminRoute`).
@@ -33,10 +46,3 @@ A full-stack web application built to manage gym memberships, workouts, and clas
 * [ ] **Calendar Export:** Add an option to generate `.ics` files so users can add their booked workouts to Google or Apple Calendar.
 
 ---
-
-## Local Setup
-
-### 1. Backend Setup
-1. Navigate to the API folder:
-   ```bash
-   cd backend/GymFitApi
